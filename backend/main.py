@@ -67,26 +67,35 @@ class GameServer:
                 question = data.get('question', '')
                 
                 # Appeler Ollama avec la question
+                prompt = f"""Tu est une IA qui joue à un jeu de devinette.
+                           Le mot à deviner est '{self.hidden_word}'.
+                           Le joueur pose cette question: {question}
+                           Si c'est une question fermée, réponds par oui ou non.
+                           Si c'est une question ouverte, réponds par une phrase
+                           mais ne donne jamais une description complète du mot.
+                           NE DONNE JAMAIS LE MOT EN ENTIER."""
+
+                logger.info(f"Envoi du prompt à Ollama: {prompt}")
+                
                 async with aiohttp.ClientSession() as session:
-                    async with session.post('http://localhost:11434/api/generate', 
+                    async with session.post('http://localhost:11434/api/generate',
                                           json={
                                               "model": "llama2:3b",
-                                              "prompt": f"""Tu est une IA qui joue à un jeu de devinette.
-                                                         Le mot à deviner est '{self.hidden_word}'.
-                                                         Le joueur pose cette question: {question}
-                                                         Si c'est une question fermée, réponds par oui ou non.
-                                                         Si c'est une question ouverte, réponds par une phrase
-                                                         mais ne donne jamais une description complète du mot.
-                                                         NE DONNE JAMAIS LE MOT EN ENTIER.""",
+                                              "prompt": prompt,
                                               "stream": True
                                           }) as ollama_resp:
+                        logger.info("Début de réception des réponses d'Ollama")
+                        full_response = ""
                         async for line in ollama_resp.content:
                             if line:
                                 try:
                                     response = json.loads(line)
-                                    await resp.send(response['response'])
+                                    response_text = response['response']
+                                    full_response += response_text
+                                    await resp.send(response_text)
                                 except json.JSONDecodeError:
                                     continue
+                        logger.info(f"Réponse complète d'Ollama: {full_response}")
                 
                 return resp
 
