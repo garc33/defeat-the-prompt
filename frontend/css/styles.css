@@ -1,11 +1,11 @@
 /* Variables */
 :root {
-    --primary-color: #2c3e50;
-    --secondary-color: #3498db;
-    --success-color: #27ae60;
+    --primary-color: #00915a;
+    --secondary-color: #00915a;
+    --success-color: #00915a;
     --error-color: #e74c3c;
-    --background-color: #ecf0f1;
-    --text-color: #2c3e50;
+    --background-color: #ffffff;
+    --text-color: #000000;
     --border-radius: 8px;
     --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -119,7 +119,7 @@ input[type="email"] {
 }
 
 .message.system {
-    background-color: #f8f9fa;
+    background-color: #f1f1f1;
     text-align: center;
     max-width: 100%;
 }
@@ -131,14 +131,14 @@ input[type="email"] {
 }
 
 .message.ai {
-    background-color: #f1f1f1;
+    background-color: #f8f9fa;
     margin-right: auto;
 }
 
 .input-container,
 .guess-container {
     padding: 1rem;
-    background: #f8f9fa;
+    background: #f1f1f1;
     border-top: 1px solid #ddd;
     display: flex;
     gap: 1rem;
