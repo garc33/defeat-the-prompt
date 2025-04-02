@@ -1,0 +1,236 @@
+/* Variables */
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #3498db;
+    --success-color: #27ae60;
+    --error-color: #e74c3c;
+    --background-color: #ecf0f1;
+    --text-color: #2c3e50;
+    --border-radius: 8px;
+    --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Reset et styles de base */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--background-color);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Header */
+header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+h1 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+/* Formulaire d'accueil */
+.player-form {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+input[type="text"],
+input[type="email"] {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+}
+
+/* Règles du jeu */
+.rules {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 2rem;
+}
+
+.rules ul {
+    list-style-position: inside;
+    margin-top: 1rem;
+}
+
+.rules li {
+    margin-bottom: 0.5rem;
+}
+
+/* Page de jeu */
+.game-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.chat-container {
+    flex: 1;
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 200px);
+}
+
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.message {
+    margin-bottom: 1rem;
+    padding: 0.8rem;
+    border-radius: var(--border-radius);
+    max-width: 80%;
+}
+
+.message.system {
+    background-color: #f8f9fa;
+    text-align: center;
+    max-width: 100%;
+}
+
+.message.user {
+    background-color: var(--secondary-color);
+    color: white;
+    margin-left: auto;
+}
+
+.message.ai {
+    background-color: #f1f1f1;
+    margin-right: auto;
+}
+
+.input-container,
+.guess-container {
+    padding: 1rem;
+    background: #f8f9fa;
+    border-top: 1px solid #ddd;
+    display: flex;
+    gap: 1rem;
+}
+
+/* Boutons */
+.btn-start,
+.btn-send,
+.btn-guess,
+.btn-back,
+.btn-play-again {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.3s;
+}
+
+.btn-start {
+    background-color: var(--success-color);
+    color: white;
+    width: 100%;
+}
+
+.btn-send,
+.btn-guess {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.btn-back {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-play-again {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.btn-start:hover,
+.btn-send:hover,
+.btn-guess:hover,
+.btn-back:hover,
+.btn-play-again:hover {
+    opacity: 0.9;
+}
+
+/* Modal de victoire */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    max-width: 400px;
+}
+
+.modal-content h2 {
+    color: var(--success-color);
+    margin-bottom: 1rem;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 1rem;
+    }
+
+    .message {
+        max-width: 90%;
+    }
+
+    .input-container,
+    .guess-container {
+        flex-direction: column;
+    }
+
+    .btn-send,
+    .btn-guess {
+        width: 100%;
+    }
+}

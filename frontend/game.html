@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de Devinette - Partie en cours</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container game-container">
+        <header>
+            <h1>Devinez le Mot</h1>
+            <button id="btnRetour" class="btn-back">Retour à l'accueil</button>
+        </header>
+
+        <main>
+            <div class="chat-container">
+                <div id="chat-messages" class="messages">
+                    <div class="message system">
+                        Posez vos questions à l'IA pour deviner le mot caché !
+                    </div>
+                </div>
+
+                <div class="input-container">
+                    <input type="text" id="messageInput" placeholder="Tapez votre question..." />
+                    <button id="btnEnvoyer" class="btn-send">Envoyer</button>
+                </div>
+
+                <div class="guess-container">
+                    <input type="text" id="guessInput" placeholder="Je pense que le mot est..." />
+                    <button id="btnDeviner" class="btn-guess">Deviner</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de victoire -->
+    <div id="victoryModal" class="modal">
+        <div class="modal-content">
+            <h2>Félicitations !</h2>
+            <p>Vous avez trouvé le mot caché !</p>
+            <button id="btnRejouer" class="btn-play-again">Retour à l'accueil</button>
+        </div>
+    </div>
+
+    <script>
+        let eventSource = null;
+
+        function appendMessage(content, isUser = false) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'ai'}`;
+            messageDiv.textContent = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showVictoryModal() {
+            document.getElementById('victoryModal').style.display = 'flex';
+        }
+
+        document.getElementById('btnEnvoyer').addEventListener('click', async () => {
+            const input = document.getElementById('messageInput');
+            const question = input.value.trim();
+            
+            if (!question) return;
+            
+            appendMessage(question, true);
+            input.value = '';
+
+            // Fermer l'ancien eventSource s'il existe
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            try {
+                // Envoyer la question au serveur
+                const response = await fetch('/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ question })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Erreur serveur');
+                }
+
+                // Créer une connexion SSE pour recevoir la réponse
+                const streamUrl = new URL('/stream', window.location.origin);
+                eventSource = new EventSource(streamUrl);
+                let aiResponse = '';
+
+                eventSource.onmessage = (event) => {
+                    aiResponse += event.data;
+                    // Mettre à jour le message de l'IA en temps réel
+                    const lastMessage = document.querySelector('.message.ai:last-child');
+                    if (lastMessage) {
+                        lastMessage.textContent = aiResponse;
+                    } else {
+                        appendMessage(aiResponse);
+                    }
+                };
+
+                eventSource.onerror = () => {
+                    eventSource.close();
+                    eventSource = null;
+                };
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                appendMessage('Désolé, une erreur est survenue.');
+            }
+        });
+
+        document.getElementById('btnDeviner').addEventListener('click', async () => {
+            const guessInput = document.getElementById('guessInput');
+            const guess = guessInput.value.trim();
+            
+            if (!guess) return;
+
+            try {
+                const response = await fetch('/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ guess })
+                });
+
+                const result = await response.json();
+                
+                if (result.correct) {
+                    showVictoryModal();
+                } else {
+                    appendMessage("Ce n'est pas le bon mot, continuez à chercher !");
+                }
+                
+                guessInput.value = '';
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                appendMessage('Désolé, une erreur est survenue.');
+            }
+        });
+
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('btnEnvoyer').click();
+            }
+        });
+
+        document.getElementById('guessInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('btnDeviner').click();
+            }
+        });
+
+        document.getElementById('btnRetour').addEventListener('click', () => {
+            if (confirm('Voulez-vous vraiment quitter la partie ?')) {
+                window.location.href = '/';
+            }
+        });
+
+        document.getElementById('btnRejouer').addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Nettoyage lors de la fermeture de la page
+        window.addEventListener('beforeunload', () => {
+            if (eventSource) {
+                eventSource.close();
+            }
+        });
+    </script>
+</body>
+</html>
