@@ -25,23 +25,17 @@ graph TD
 
 ## Structure du Projet
 ```
-word-guessing-game/
+defeat-the-prompt/
 ├── backend/
-│   ├── main.py           # Point d'entrée de l'application
-│   ├── routes.py         # Routes API
-│   ├── game_manager.py   # Gestion du jeu
-│   ├── llm_client.py     # Interface avec Ollama
-│   └── data_manager.py   # Gestion des données CSV
+│   ├── main.py           # Application principale (routes, gestion du jeu, LLM)
+│   └── templates/        # Templates (si nécessaire)
 ├── frontend/
 │   ├── index.html        # Page d'accueil
-│   ├── game.html         # Page de jeu
-│   ├── css/
-│   │   └── styles.css
-│   └── js/
-│       ├── main.js       # Logic principale
-│       └── chat.js       # Gestion du chat
+│   ├── game.html         # Page de jeu avec logique JavaScript intégrée
+│   └── css/
+│       └── styles.css    # Styles de l'application
 └── data/
-    └── game_results.csv  # Stockage des résultats
+    └── resultats.csv    # Stockage des résultats de jeu
 ```
 
 ## Flux de Données
@@ -75,26 +69,52 @@ sequenceDiagram
 
 ### Backend (Python/aiohttp)
 - **Routes principales** :
+  - GET `/` : Page d'accueil
+  - GET `/game` : Page de jeu
   - POST `/start` : Démarrage partie
-  - GET `/stream` : SSE pour le chat
+  - GET `/stream` : Configuration SSE
+  - POST `/stream` : Envoi des messages au LLM
   - POST `/verify` : Vérification réponse
-  - POST `/end` : Fin de partie
+  - GET `/static/*` : Fichiers statiques
 
-### Prompt System LLM
+### Système LLM
+- **Modèle** : llama3.2:3b via Ollama
+- **Prompt System** :
 ```
 Tu est une IA qui joue à un jeu de devinette.
-Je vais te donner un mot, et le joueur devra te poser des questions pour deviner ce mot.
-Si c'est une question fermée, tu répondra par oui ou non.
-Si c'est une question ouverte, tu répondra par une phrase mais tu ne donnera jamais une description complète du mot.    
+Le joueur doit deviner un mot en posant des questions.
+Le mot à deviner est '{mot_caché}'.
 
+Historique de la conversation:
+<historique>
+{historique_questions_reponses}
+</historique>
+
+Le joueur dit:
+<message>
+{question}
+</message>
+
+<instructions>
+Si c'est une question fermée, réponds par oui ou non.
+Si c'est une question ouverte, réponds par une phrase.
+Ne donne JAMAIS une description complète du mot.
 NE DONNE JAMAIS LE MOT EN ENTIER.
+</instructions>
+
+Base ta réponse en tenant compte de l'historique des questions précédentes.
 ```
 
-### Stockage des Données
+### Stockage des Données (resultats.csv)
 Format CSV :
 ```csv
 date,nom,prenom,email,mot_cache,resultat,temps_partie
 ```
+
+États possibles du résultat :
+- 'en_cours' : Partie en cours
+- 'victoire' : Mot trouvé (TODO: à implémenter)
+- 'abandon' : Partie abandonnée (TODO: à implémenter)
 
 ### Sécurité
 - Validation des entrées utilisateur
@@ -103,4 +123,10 @@ date,nom,prenom,email,mot_cache,resultat,temps_partie
 
 ### Démarrage Application
 ```bash
-python main.py --word "mot_secret" --output "resultats.csv"
+python backend/main.py --word "mot_secret" --output "data/resultats.csv"
+```
+
+### Fonctionnalités à Implémenter
+1. Mise à jour du CSV avec le résultat de la partie (victoire/abandon)
+2. Calcul et enregistrement du temps de partie
+3. Route POST `/end` pour l'abandon de partie
