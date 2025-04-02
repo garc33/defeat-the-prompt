@@ -84,33 +84,16 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error('Erreur serveur');
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Erreur serveur');
                 }
 
-                // Créer une connexion SSE pour recevoir la réponse
-                const streamUrl = new URL('/stream', window.location.origin);
-                eventSource = new EventSource(streamUrl);
-                let aiResponse = '';
-
-                eventSource.onmessage = (event) => {
-                    aiResponse += event.data;
-                    // Mettre à jour le message de l'IA en temps réel
-                    const lastMessage = document.querySelector('.message.ai:last-child');
-                    if (lastMessage) {
-                        lastMessage.textContent = aiResponse;
-                    } else {
-                        appendMessage(aiResponse);
-                    }
-                };
-
-                eventSource.onerror = () => {
-                    eventSource.close();
-                    eventSource = null;
-                };
+                const aiResponse = await response.text();
+                appendMessage(aiResponse);
 
             } catch (error) {
                 console.error('Erreur:', error);
-                appendMessage('Désolé, une erreur est survenue.');
+                appendMessage(error.message || 'Désolé, une erreur est survenue.');
             }
         });
 

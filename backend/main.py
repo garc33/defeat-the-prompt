@@ -4,6 +4,7 @@ import aiohttp
 from aiohttp import web
 import aiohttp_sse
 import json
+import ollama
 import csv
 from datetime import datetime
 from pathlib import Path
@@ -29,6 +30,7 @@ class GameServer:
         self.app.router.add_get('/', self.handle_index)
         self.app.router.add_get('/game', self.handle_game)
         self.app.router.add_post('/start', self.handle_start)
+        self.app.router.add_get('/stream', self.handle_stream)
         self.app.router.add_post('/stream', self.handle_stream)
         self.app.router.add_post('/verify', self.handle_verify)
         self.app.router.add_static('/static', Path('frontend'))
@@ -61,11 +63,21 @@ class GameServer:
             raise web.HTTPBadRequest(text='Format JSON invalide')
 
     async def handle_stream(self, request):
-        async with aiohttp_sse.sse_response(request) as resp:
+        if request.method == 'GET':
+            # Configuration SSE
+            return await aiohttp_sse.sse_response(request)
+            
+        elif request.method == 'POST':
             try:
                 data = await request.json()
                 question = data.get('question', '')
                 
+                if not question.strip():
+                    return web.Response(
+                        text="Veuillez poser une question.",
+                        status=400
+                    )
+
                 # Appeler Ollama avec la question
                 prompt = f"""Tu est une IA qui joue à un jeu de devinette.
                            Le mot à deviner est '{self.hidden_word}'.
@@ -77,31 +89,39 @@ class GameServer:
 
                 logger.info(f"Envoi du prompt à Ollama: {prompt}")
                 
-                async with aiohttp.ClientSession() as session:
-                    async with session.post('http://localhost:11434/api/generate',
-                                          json={
-                                              "model": "llama2:3b",
-                                              "prompt": prompt,
-                                              "stream": True
-                                          }) as ollama_resp:
-                        logger.info("Début de réception des réponses d'Ollama")
-                        full_response = ""
-                        async for line in ollama_resp.content:
-                            if line:
-                                try:
-                                    response = json.loads(line)
-                                    response_text = response['response']
-                                    full_response += response_text
-                                    await resp.send(response_text)
-                                except json.JSONDecodeError:
-                                    continue
-                        logger.info(f"Réponse complète d'Ollama: {full_response}")
+                full_response = ""
+                try:
+                    async for response in ollama.generate(model='llama2:3b', prompt=prompt, stream=True):
+                        full_response += response['response']
+                    
+                    logger.info(f"Réponse complète d'Ollama: {full_response}")
+                    return web.Response(text=full_response)
                 
-                return resp
+                except ollama.ResponseError as e:
+                    logger.error(f"Erreur Ollama: {e}")
+                    return web.Response(
+                        text="Désolé, je n'ai pas pu générer une réponse. Veuillez réessayer.",
+                        status=500
+                    )
+                except Exception as e:
+                    logger.error(f"Erreur inattendue avec Ollama: {e}")
+                    return web.Response(
+                        text="Une erreur s'est produite lors de la génération de la réponse.",
+                        status=500
+                    )
 
+            except json.JSONDecodeError:
+                logger.error("Erreur de décodage JSON")
+                return web.Response(
+                    text="Format de question invalide.",
+                    status=400
+                )
             except Exception as e:
                 logger.error(f"Erreur lors du streaming: {e}")
-                raise web.HTTPInternalServerError(text=str(e))
+                return web.Response(
+                    text="Désolé, une erreur inattendue s'est produite. Veuillez réessayer.",
+                    status=500
+                )
 
     async def handle_verify(self, request):
         try:
