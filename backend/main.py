@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 class GameServer:
     def __init__(self, hidden_word: str, output_file: str):
+        self.conversation_history = []
         logger.info("Initialisation du modèle llama3.2:3b...")
         try:
             ollama.pull('llama3.2:3b')
@@ -48,7 +49,6 @@ class GameServer:
 
     async def handle_game(self, request):
         return web.FileResponse('frontend/game.html')
-
     async def handle_start(self, request):
         try:
             data = await request.json()
@@ -57,11 +57,14 @@ class GameServer:
             if not all(field in data for field in required_fields):
                 raise web.HTTPBadRequest(text='Informations manquantes')
 
+            # Réinitialiser l'historique des conversations
+            self.conversation_history = []
+
             # Sauvegarder les informations du joueur
             now = datetime.now().isoformat()
             with open(self.output_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([now, data['nom'], data['prenom'], data['email'], 
+                writer.writerow([now, data['nom'], data['prenom'], data['email'],
                                self.hidden_word, 'en_cours', '0'])
 
             return web.Response(text=json.dumps({'status': 'success'}),
@@ -86,14 +89,38 @@ class GameServer:
                         status=400
                     )
 
-                # Appeler Ollama avec la question
+                # Ajouter la question à l'historique
+                self.conversation_history.append({"role": "user", "content": question})
+                
+                # Construire l'historique formaté pour le prompt
+                history_text = "\n".join([
+                    f"{'Joueur' if msg['role'] == 'user' else 'IA'}: {msg['content']}"
+                    for msg in self.conversation_history[:-1]  # Exclure la dernière question
+                ])
+                
+                # Appeler Ollama avec la question et l'historique
                 prompt = f"""Tu est une IA qui joue à un jeu de devinette.
+                           Le joueur doit deviner un mot en posant des questions.
                            Le mot à deviner est '{self.hidden_word}'.
-                           Le joueur pose cette question: {question}
+                           
+                           Historique de la conversation:
+                           <historique>
+                           {history_text}
+                           </historique>
+                           
+                           Le joueur dit: 
+                           <message>
+                           {question}
+                           </message>
+
+                           <instructions>
                            Si c'est une question fermée, réponds par oui ou non.
                            Si c'est une question ouverte, réponds par une phrase
-                           mais ne donne jamais une description complète du mot.
-                           NE DONNE JAMAIS LE MOT EN ENTIER."""
+                           Ne donne JAMAIS une description complète du mot.
+                           NE DONNE JAMAIS LE MOT EN ENTIER.
+                           </instructions>
+
+                           Base ta réponse en tenant compte de l'historique des questions précédentes."""
 
                 logger.info(f"Envoi du prompt à Ollama: {prompt}")
                 
@@ -101,6 +128,8 @@ class GameServer:
                 try:
                     response = ollama.generate(model='llama3.2:3b', prompt=prompt)
                     full_response = response['response']
+                    # Ajouter la réponse à l'historique
+                    self.conversation_history.append({"role": "assistant", "content": full_response})
                     
                     logger.info(f"Réponse complète d'Ollama: {full_response}")
                     return web.Response(text=full_response)
