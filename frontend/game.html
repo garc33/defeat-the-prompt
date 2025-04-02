@@ -140,8 +140,18 @@
             }
         });
 
-        document.getElementById('btnRetour').addEventListener('click', () => {
+        document.getElementById('btnRetour').addEventListener('click', async () => {
             if (confirm('Voulez-vous vraiment quitter la partie ?')) {
+                try {
+                    await fetch('/end', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                } catch (error) {
+                    console.error('Erreur lors de l\'abandon:', error);
+                }
                 window.location.href = '/';
             }
         });
@@ -151,10 +161,14 @@
         });
 
         // Nettoyage lors de la fermeture de la page
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', async (event) => {
             if (eventSource) {
                 eventSource.close();
             }
+            
+            // Utiliser sendBeacon pour une requête fiable lors de la fermeture
+            const blob = new Blob([JSON.stringify({})], {type: 'application/json'});
+            navigator.sendBeacon('/end', blob);
         });
     </script>
 </body>
