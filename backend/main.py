@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 
 class GameServer:
     def __init__(self, hidden_word: str, output_file: str):
+        logger.info("Initialisation du modèle llama3.2:3b...")
+        try:
+            ollama.pull('llama3.2:3b')
+            logger.info("Modèle llama3.2:3b téléchargé avec succès")
+        except Exception as e:
+            logger.error(f"Erreur lors du téléchargement du modèle: {e}")
+            raise
+            
         self.hidden_word = hidden_word.lower()
         self.output_file = Path(output_file)
         self.app = web.Application()
