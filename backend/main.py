@@ -91,8 +91,8 @@ class GameServer:
                 
                 full_response = ""
                 try:
-                    async for response in ollama.generate(model='llama2:3b', prompt=prompt, stream=True):
-                        full_response += response['response']
+                    response = ollama.generate(model='llama3.2:3b', prompt=prompt)
+                    full_response = response['response']
                     
                     logger.info(f"Réponse complète d'Ollama: {full_response}")
                     return web.Response(text=full_response)
