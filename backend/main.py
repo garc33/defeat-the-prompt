@@ -154,7 +154,8 @@ class GameServer:
                            NE DONNE JAMAIS LE MOT EN ENTIER.
                            </instructions>
 
-                           Base ta réponse en tenant compte de l'historique des questions précédentes."""
+                           Base ta réponse en tenant compte de l'historique des questions précédentes.
+                           N'envoie que ta réponse, sans autre information."""
 
                 logger.info(f"Envoi du prompt à Ollama: {prompt}")
                 

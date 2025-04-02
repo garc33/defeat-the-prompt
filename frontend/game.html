@@ -21,14 +21,12 @@
                     </div>
                 </div>
 
-                <div class="input-container">
-                    <input type="text" id="messageInput" placeholder="Tapez votre question..." />
-                    <button id="btnEnvoyer" class="btn-send">Envoyer</button>
-                </div>
-
-                <div class="guess-container">
-                    <input type="text" id="guessInput" placeholder="Je pense que le mot est..." />
-                    <button id="btnDeviner" class="btn-guess">Deviner</button>
+                <div class="unified-input-container">
+                    <input type="text" id="sharedInput" placeholder="Tapez votre message..." />
+                    <div class="buttons-container">
+                        <button id="btnEnvoyer" class="btn-send">Envoyer</button>
+                        <button id="btnDeviner" class="btn-guess">Deviner</button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -60,13 +58,12 @@
         }
 
         document.getElementById('btnEnvoyer').addEventListener('click', async () => {
-            const input = document.getElementById('messageInput');
-            const question = input.value.trim();
+            const question = document.getElementById('sharedInput').value.trim();
             
             if (!question) return;
             
             appendMessage(question, true);
-            input.value = '';
+            document.getElementById('sharedInput').value = '';
 
             // Fermer l'ancien eventSource s'il existe
             if (eventSource) {
@@ -98,8 +95,7 @@
         });
 
         document.getElementById('btnDeviner').addEventListener('click', async () => {
-            const guessInput = document.getElementById('guessInput');
-            const guess = guessInput.value.trim();
+            const guess = document.getElementById('sharedInput').value.trim();
             
             if (!guess) return;
 
@@ -120,7 +116,7 @@
                     appendMessage("Ce n'est pas le bon mot, continuez à chercher !");
                 }
                 
-                guessInput.value = '';
+                document.getElementById('sharedInput').value = '';
 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -128,15 +124,10 @@
             }
         });
 
-        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+        document.getElementById('sharedInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                document.getElementById('btnEnvoyer').click();
-            }
-        });
-
-        document.getElementById('guessInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('btnDeviner').click();
+                const activeButton = e.shiftKey ? 'btnDeviner' : 'btnEnvoyer';
+                document.getElementById(activeButton).click();
             }
         });
 
