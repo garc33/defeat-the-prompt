@@ -14,14 +14,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GameServer:
-    def __init__(self, hidden_word: str, output_file: str):
+    def __init__(self, hidden_word: str, output_file: str, model_name: str):
+        self.model_name = model_name
         self.conversation_history = []
         self.start_time = None
         self.current_email = None
-        logger.info("Initialisation du modèle llama3.2:3b...")
+        logger.info(f"Initialisation du modèle {self.model_name}...")
         try:
-            ollama.pull('llama3.2:3b')
-            logger.info("Modèle llama3.2:3b téléchargé avec succès")
+            ollama.pull(self.model_name)
+            logger.info(f"Modèle {self.model_name} téléchargé avec succès")
         except Exception as e:
             logger.error(f"Erreur lors du téléchargement du modèle: {e}")
             raise
@@ -161,7 +162,7 @@ class GameServer:
                 
                 full_response = ""
                 try:
-                    response = ollama.generate(model='llama3.2:3b', prompt=prompt)
+                    response = ollama.generate(model=self.model_name, prompt=prompt)
                     full_response = response['response']
                     # Ajouter la réponse à l'historique
                     self.conversation_history.append({"role": "assistant", "content": full_response})
@@ -233,9 +234,10 @@ def main():
     parser = argparse.ArgumentParser(description='Serveur de jeu de devinette')
     parser.add_argument('--word', required=True, help='Le mot à deviner')
     parser.add_argument('--output', required=True, help='Fichier CSV pour les résultats')
+    parser.add_argument('--model', default='llama3.2:3b', help='Nom du modèle LLM à utiliser (par défaut: llama3.2:3b)')
     args = parser.parse_args()
 
-    game_server = GameServer(args.word, args.output)
+    game_server = GameServer(args.word, args.output, args.model)
     web.run_app(game_server.app, host='localhost', port=8080)
 
 if __name__ == '__main__':

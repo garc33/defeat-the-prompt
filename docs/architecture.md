@@ -78,7 +78,8 @@ sequenceDiagram
   - GET `/static/*` : Fichiers statiques
 
 ### Système LLM
-- **Modèle** : llama3.2:3b via Ollama
+- **Modèle** : Configurable via Ollama (par défaut: llama3.2:3b)
+- **Configuration** : Le modèle peut être spécifié au démarrage via l'argument `--model`
 - **Prompt System** :
 ```
 Tu est une IA qui joue à un jeu de devinette.
@@ -123,7 +124,7 @@ date,nom,prenom,email,mot_cache,resultat,temps_partie
 
 ### Démarrage Application
 ```bash
-python backend/main.py --word "mot_secret" --output "data/resultats.csv"
+python backend/main.py --word "mot_secret" --output "data/resultats.csv" [--model "nom_du_modele"]
 ```
 
 ### Fonctionnalités à Implémenter
