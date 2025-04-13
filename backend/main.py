@@ -19,6 +19,16 @@ class GameServer:
         self.conversation_history = []
         self.start_time = None
         self.current_email = None
+        self.system_prompt = f"""Tu es une IA qui joue à un jeu de devinette.
+Le joueur doit deviner un mot en posant des questions.
+Le mot à deviner est '{hidden_word.lower()}'.
+
+Instructions:
+- Si c'est une question fermée, réponds par oui ou non
+- Si c'est une question ouverte, réponds par une phrase
+- Ne donne JAMAIS une description complète du mot
+- NE DONNE JAMAIS LE MOT EN ENTIER
+- Base ta réponse en tenant compte de l'historique des questions précédentes"""
         logger.info(f"Initialisation du modèle {self.model_name}...")
         try:
             ollama.pull(self.model_name)
@@ -126,44 +136,21 @@ class GameServer:
 
                 # Ajouter la question à l'historique
                 self.conversation_history.append({"role": "user", "content": question})
-                
-                # Construire l'historique formaté pour le prompt
-                history_text = "\n".join([
-                    f"{'Joueur' if msg['role'] == 'user' else 'IA'}: {msg['content']}"
-                    for msg in self.conversation_history[:-1]  # Exclure la dernière question
-                ])
-                
-                # Appeler Ollama avec la question et l'historique
-                prompt = f"""Tu est une IA qui joue à un jeu de devinette.
-                           Le joueur doit deviner un mot en posant des questions.
-                           Le mot à deviner est '{self.hidden_word}'.
-                           
-                           Historique de la conversation:
-                           <historique>
-                           {history_text}
-                           </historique>
-                           
-                           Le joueur dit: 
-                           <message>
-                           {question}
-                           </message>
 
-                           <instructions>
-                           Si c'est une question fermée, réponds par oui ou non.
-                           Si c'est une question ouverte, réponds par une phrase
-                           Ne donne JAMAIS une description complète du mot.
-                           NE DONNE JAMAIS LE MOT EN ENTIER.
-                           </instructions>
-
-                           Base ta réponse en tenant compte de l'historique des questions précédentes.
-                           N'envoie que ta réponse, sans autre information."""
-
-                logger.info(f"Envoi du prompt à Ollama: {prompt}")
+                logger.info(f"Envoi de la question à Ollama avec l'historique")
                 
-                full_response = ""
+                messages = [
+                    {"role": "system", "content": self.system_prompt},
+                    *self.conversation_history
+                ]
+                
                 try:
-                    response = ollama.generate(model=self.model_name, prompt=prompt)
-                    full_response = response['response']
+                    response = ollama.chat(
+                        model=self.model_name,
+                        messages=messages
+                    )
+                    logger.info(f"Structure de la réponse Ollama: {response}")
+                    full_response = response.message.content
                     # Ajouter la réponse à l'historique
                     self.conversation_history.append({"role": "assistant", "content": full_response})
                     
