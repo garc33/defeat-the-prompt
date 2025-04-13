@@ -88,6 +88,53 @@ input[type="email"] {
     margin-bottom: 0.5rem;
 }
 
+/* Leaderboard */
+.leaderboard {
+    background: white;
+    padding: 2rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 2rem;
+}
+
+.leaderboard h2 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+}
+
+.leaderboard table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.leaderboard th,
+.leaderboard td {
+    padding: 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.leaderboard th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+}
+
+.leaderboard tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.leaderboard tr:hover {
+    background-color: #f5f5f5;
+}
+
+.leaderboard .position {
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
 /* Page de jeu */
 .game-container {
     height: 100vh;

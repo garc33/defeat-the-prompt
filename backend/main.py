@@ -55,11 +55,13 @@ Instructions:
     def setup_routes(self):
         self.app.router.add_get('/', self.handle_index)
         self.app.router.add_get('/game', self.handle_game)
+        self.app.router.add_get('/scores', self.handle_scores)
         self.app.router.add_post('/start', self.handle_start)
         self.app.router.add_get('/stream', self.handle_stream)
         self.app.router.add_post('/stream', self.handle_stream)
         self.app.router.add_post('/verify', self.handle_verify)
         self.app.router.add_post('/end', self.handle_end)
+        self.app.router.add_get('/leaderboard', self.handle_leaderboard)
         self.app.router.add_static('/static', Path('frontend'))
 
     async def _update_game_result(self, pseudo: str, resultat: str) -> None:
@@ -95,9 +97,13 @@ Instructions:
 
     async def handle_index(self, request):
         return web.FileResponse('frontend/index.html')
+    async def handle_scores(self, request):
+        """Retourne la page du leaderboard."""
+        return web.FileResponse('frontend/leaderboard.html')
 
     async def handle_game(self, request):
         return web.FileResponse('frontend/game.html')
+        
     async def handle_start(self, request):
         try:
             data = await request.json()
@@ -225,6 +231,38 @@ Instructions:
                              
         except Exception as e:
             logger.error(f"Erreur lors de l'abandon: {e}")
+            raise web.HTTPInternalServerError(text=str(e))
+
+    async def handle_leaderboard(self, request):
+        """Retourne les 10 meilleurs scores."""
+        try:
+            # Lire le fichier CSV
+            scores = []
+            with open(self.output_file, 'r', newline='') as f:
+                reader = csv.DictReader(f)
+                # Filtrer les parties gagnées et convertir les données
+                for row in reader:
+                    if row['resultat'] == 'victoire':
+                        scores.append({
+                            'pseudo': row['pseudo'],
+                            'temps': int(row['temps_partie']),
+                            'date': row['date']
+                        })
+            
+            # Trier par temps et prendre les 10 meilleurs
+            top_scores = sorted(scores, key=lambda x: x['temps'])[:10]
+            
+            # Ajouter la position
+            for i, score in enumerate(top_scores, 1):
+                score['position'] = i
+            
+            return web.Response(
+                text=json.dumps({'leaderboard': top_scores}),
+                content_type='application/json'
+            )
+            
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération du leaderboard: {e}")
             raise web.HTTPInternalServerError(text=str(e))
 
 def main():

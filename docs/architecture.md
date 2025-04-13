@@ -13,6 +13,7 @@ graph TD
     
     subgraph Frontend
     A1[Page d'Accueil] --> A2[Page de Jeu]
+    A1 --> A4[Page Leaderboard]
     A2 --> A3[Popup Victoire]
     end
     
@@ -32,6 +33,7 @@ defeat-the-prompt/
 ├── frontend/
 │   ├── index.html        # Page d'accueil
 │   ├── game.html         # Page de jeu avec logique JavaScript intégrée
+│   ├── leaderboard.html  # Page des meilleurs scores
 │   └── css/
 │       └── styles.css    # Styles de l'application
 └── data/
@@ -63,6 +65,11 @@ sequenceDiagram
     F->>B: POST /verify
     B->>F: Confirmation victoire
     B->>CSV: Enregistre résultat
+    
+    U->>F: Consulte scores
+    F->>B: GET /leaderboard
+    B->>CSV: Lit résultats
+    B->>F: Top 10 meilleurs temps
 ```
 
 ## Spécifications Techniques
@@ -71,10 +78,13 @@ sequenceDiagram
 - **Routes principales** :
   - GET `/` : Page d'accueil
   - GET `/game` : Page de jeu
+  - GET `/scores` : Page des meilleurs scores
+  - GET `/leaderboard` : API JSON des scores (top 10)
   - POST `/start` : Démarrage partie
   - GET `/stream` : Configuration SSE
   - POST `/stream` : Envoi des messages au LLM
   - POST `/verify` : Vérification réponse
+  - POST `/end` : Abandon de partie
   - GET `/static/*` : Fichiers statiques
 
 ### Système LLM
@@ -109,13 +119,13 @@ Base ta réponse en tenant compte de l'historique des questions précédentes.
 ### Stockage des Données (resultats.csv)
 Format CSV :
 ```csv
-date,nom,prenom,email,mot_cache,resultat,temps_partie
+date,pseudo,telephone,mot_cache,resultat,temps_partie
 ```
 
 États possibles du résultat :
 - 'en_cours' : Partie en cours
-- 'victoire' : Mot trouvé (TODO: à implémenter)
-- 'abandon' : Partie abandonnée (TODO: à implémenter)
+- 'victoire' : Mot trouvé
+- 'abandon' : Partie abandonnée
 
 ### Sécurité
 - Validation des entrées utilisateur
@@ -126,8 +136,9 @@ date,nom,prenom,email,mot_cache,resultat,temps_partie
 ```bash
 python backend/main.py --word "mot_secret" --output "data/resultats.csv" [--model "nom_du_modele"]
 ```
-
-### Fonctionnalités à Implémenter
+### Fonctionnalités Implémentées
 1. Mise à jour du CSV avec le résultat de la partie (victoire/abandon)
 2. Calcul et enregistrement du temps de partie
+3. Route POST `/end` pour l'abandon de partie
+4. Page de leaderboard avec les 10 meilleurs scores
 3. Route POST `/end` pour l'abandon de partie
