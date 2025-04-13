@@ -18,7 +18,7 @@ class GameServer:
         self.model_name = model_name
         self.conversation_history = []
         self.start_time = None
-        self.current_email = None
+        self.current_pseudo = None
         self.system_prompt = f"""Tu es une IA qui joue à un jeu de devinette.
 Le joueur doit deviner un mot en posant des questions.
 Le mot à deviner est '{hidden_word.lower()}'.
@@ -43,10 +43,14 @@ Instructions:
         self.setup_routes()
         
         # Vérifier/créer le fichier CSV s'il n'existe pas
+        # Créer le répertoire parent si nécessaire
+        self.output_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Créer le fichier CSV s'il n'existe pas
         if not self.output_file.exists():
             with open(self.output_file, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['date', 'nom', 'prenom', 'email', 'mot_cache', 'resultat', 'temps_partie'])
+                writer.writerow(['date', 'pseudo', 'telephone', 'mot_cache', 'resultat', 'temps_partie'])
 
     def setup_routes(self):
         self.app.router.add_get('/', self.handle_index)
@@ -58,7 +62,7 @@ Instructions:
         self.app.router.add_post('/end', self.handle_end)
         self.app.router.add_static('/static', Path('frontend'))
 
-    async def _update_game_result(self, email: str, resultat: str) -> None:
+    async def _update_game_result(self, pseudo: str, resultat: str) -> None:
         """Met à jour le résultat et le temps de la partie dans le CSV."""
         try:
             temps_partie = int((datetime.now() - self.start_time).total_seconds())
@@ -72,9 +76,11 @@ Instructions:
             
             # Trouver et mettre à jour la dernière entrée du joueur
             for i in reversed(range(len(rows))):
-                if rows[i][3] == email and rows[i][5] == 'en_cours':  # email est dans colonne 3, resultat dans colonne 5
-                    rows[i][5] = resultat  # Mettre à jour le résultat
-                    rows[i][6] = str(temps_partie)  # Mettre à jour le temps
+                logger.info(f"Ligne en cours d'analyse: {rows[i]}")
+                if rows[i][1] == pseudo and rows[i][4] == 'en_cours':  # pseudo est dans colonne 1, resultat dans colonne 4
+                    logger.info(f"Mise à jour de la ligne pour {pseudo}")
+                    rows[i][4] = resultat  # Mettre à jour le résultat (indice 4)
+                    rows[i][5] = str(temps_partie)  # Mettre à jour le temps (indice 5)
                     break
             
             # Réécrire le fichier CSV
@@ -96,21 +102,25 @@ Instructions:
         try:
             data = await request.json()
             # Valider les données
-            required_fields = ['nom', 'prenom', 'email']
-            if not all(field in data for field in required_fields):
-                raise web.HTTPBadRequest(text='Informations manquantes')
+            if not data.get('pseudo') or not data.get('telephone'):
+                raise web.HTTPBadRequest(text='Pseudo et téléphone requis')
+            
+            # Valider le format du téléphone
+            import re
+            if not re.fullmatch(r'\+?\d{10,}', data['telephone']):
+                raise web.HTTPBadRequest(text='Format de téléphone invalide')
 
             # Réinitialiser l'historique des conversations et le temps
             self.conversation_history = []
             self.start_time = datetime.now()
-            self.current_email = data['email']
+            self.current_pseudo = data['pseudo']
 
             # Sauvegarder les informations du joueur
             now = datetime.now().isoformat()
             with open(self.output_file, 'a', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow([now, data['nom'], data['prenom'], data['email'],
-                               self.hidden_word, 'en_cours', '0'])
+                writer.writerow([now, data['pseudo'], data['telephone'],
+                              self.hidden_word, 'en_cours', '0'])
 
             return web.Response(text=json.dumps({'status': 'success'}),
                               content_type='application/json')
@@ -190,7 +200,7 @@ Instructions:
             
             if guess == self.hidden_word:
                 # Mettre à jour le CSV avec la victoire
-                await self._update_game_result(self.current_email, 'victoire')
+                await self._update_game_result(self.current_pseudo, 'victoire')
                 return web.Response(text=json.dumps({'correct': True}),
                                  content_type='application/json')
             else:
@@ -206,10 +216,10 @@ Instructions:
     async def handle_end(self, request):
         """Gère l'abandon d'une partie."""
         try:
-            if not self.current_email:
+            if not self.current_pseudo:
                 raise web.HTTPBadRequest(text='Aucune partie en cours')
                 
-            await self._update_game_result(self.current_email, 'abandon')
+            await self._update_game_result(self.current_pseudo, 'abandon')
             return web.Response(text=json.dumps({'status': 'success'}),
                              content_type='application/json')
                              
