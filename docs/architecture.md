@@ -34,10 +34,13 @@ defeat-the-prompt/
 │   ├── index.html        # Page d'accueil
 │   ├── game.html         # Page de jeu avec logique JavaScript intégrée
 │   ├── leaderboard.html  # Page des meilleurs scores
+│   ├── distribution.html # Page de distribution des cadeaux
 │   └── css/
 │       └── styles.css    # Styles de l'application
 └── data/
-    └── resultats.csv    # Stockage des résultats de jeu
+    ├── resultats.csv     # Stockage des résultats de jeu
+    ├── distributions.csv # Historique des distributions de cadeaux
+    └── cadeaux_recus.csv # Suivi des cadeaux reçus par joueur
 ```
 
 ## Flux de Données
@@ -85,6 +88,10 @@ sequenceDiagram
   - POST `/stream` : Envoi des messages au LLM
   - POST `/verify` : Vérification réponse
   - POST `/end` : Abandon de partie
+  - GET `/distribution` : Page de distribution des cadeaux
+  - GET `/distribution/last` : Dernière distribution effectuée
+  - GET `/distribution/winners` : Gagnants de la dernière distribution
+  - POST `/distribution/start` : Déclencher une distribution
   - GET `/static/*` : Fichiers statiques
 
 ### Système LLM
@@ -117,9 +124,21 @@ Base ta réponse en tenant compte de l'historique des questions précédentes.
 ```
 
 ### Stockage des Données (resultats.csv)
-Format CSV :
+Formats CSV :
+
+resultats.csv :
 ```csv
 date,pseudo,telephone,mot_cache,resultat,temps_partie
+```
+
+distributions.csv :
+```csv
+date_distribution,gagnant1,gagnant2,gagnant3
+```
+
+cadeaux_recus.csv :
+```csv
+pseudo,date_reception
 ```
 
 États possibles du résultat :
@@ -141,4 +160,8 @@ python backend/main.py --word "mot_secret" --output "data/resultats.csv" [--mode
 2. Calcul et enregistrement du temps de partie
 3. Route POST `/end` pour l'abandon de partie
 4. Page de leaderboard avec les 10 meilleurs scores
-3. Route POST `/end` pour l'abandon de partie
+5. Système de distribution de cadeaux avec :
+   - Sélection automatique de 3 gagnants
+   - Interface dédiée pour les distributions
+   - Historique des distributions
+   - Suivi des cadeaux reçus par joueur
