@@ -13,10 +13,6 @@
         <section id="lastDistribution" class="section">
             <h2>Dernière Distribution</h2>
             <p id="lastDistributionTime">Aucune distribution effectuée</p>
-            <div id="lastWinners" class="winners-list">
-                <h3>Derniers Gagnants :</h3>
-                <ul id="winnersList"></ul>
-            </div>
         </section>
 
         <section id="newDistribution" class="section">
@@ -63,12 +59,6 @@
             padding: 12px;
             text-align: left;
             border-bottom: 1px solid #eee;
-        }
-
-        .winners-mini-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
         }
 
         .winner-entry {
@@ -145,38 +135,11 @@
                 const data = await response.json();
                 
                 const timeElem = document.getElementById('lastDistributionTime');
-                const winnersList = document.getElementById('winnersList');
                 
                 if (data.date_distribution) {
                     timeElem.textContent = `Dernière distribution : ${formatDate(data.date_distribution)}`;
-                    
-                    const winners = [];
-                    for (let i = 1; i <= 3; i++) {
-                        if (data[`gagnant${i}`]) {
-                            winners.push(data[`gagnant${i}`]);
-                        }
-                    }
-                    
-                    if (winners.length > 0) {
-                        winnersList.innerHTML = Object.entries(data)
-                            .filter(([key]) => key.startsWith('gagnant'))
-                            .map(([_, winner]) => {
-                                if (winner && winner.pseudo) {
-                                    return `<li class="winner-item">
-                                        <span class="winner-pseudo">${winner.pseudo}</span>
-                                        <span class="winner-phone">${winner.telephone}</span>
-                                    </li>`;
-                                }
-                                return '';
-                            })
-                            .filter(html => html !== '')
-                            .join('');
-                    } else {
-                        winnersList.innerHTML = '<li>Aucun gagnant</li>';
-                    }
                 } else {
                     timeElem.textContent = 'Aucune distribution effectuée';
-                    winnersList.innerHTML = '<li>Aucun gagnant</li>';
                 }
             } catch (error) {
                 console.error('Erreur lors du chargement de la dernière distribution:', error);
