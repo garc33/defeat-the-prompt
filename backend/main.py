@@ -75,7 +75,6 @@ class GameServer:
         self.app.router.add_post('/start', self.handle_start)
         self.app.router.add_get('/stream', self.handle_stream)
         self.app.router.add_post('/stream', self.handle_stream)
-        self.app.router.add_post('/verify', self.handle_verify)
         self.app.router.add_post('/end', self.handle_end)
         self.app.router.add_get('/leaderboard', self.handle_leaderboard)
         self.app.router.add_get('/distribution/last', self.handle_last_distribution)
@@ -170,16 +169,26 @@ class GameServer:
         elif request.method == 'POST':
             try:
                 data = await request.json()
-                question = data.get('question', '')
+                message = data.get('question', '')
                 
-                if not question.strip():
+                if not message.strip():
                     return web.Response(
-                        text="Veuillez poser une question.",
-                        status=400
+                        text=json.dumps({"error": "Message vide"}),
+                        status=400,
+                        content_type=JSON_CONTENT_TYPE
                     )
 
-                # Ajouter la question à l'historique
-                self.conversation_history.append({"role": "user", "content": question})
+                # Vérifier d'abord si le mot est dans le message
+                if self.hidden_word.lower() in message.lower():
+                    # Mettre à jour le CSV avec la victoire
+                    await self._update_game_result(self.current_pseudo, 'victoire')
+                    return web.Response(
+                        text=json.dumps({"victory": True}),
+                        content_type=JSON_CONTENT_TYPE
+                    )
+
+                # Si le mot n'est pas trouvé, continuer avec le traitement normal
+                self.conversation_history.append({"role": "user", "content": message})
                 system_prompt = f"""Tu es une IA qui joue à un jeu de devinette.
 Le joueur doit deviner un mot en posant des questions.
 Le mot à deviner est '{self.hidden_word.lower()}'.
@@ -190,8 +199,7 @@ Instructions:
 - Ne donne JAMAIS une description complète du mot
 - NE DONNE JAMAIS LE MOT EN ENTIER
 - Base ta réponse en tenant compte de l'historique des questions précédentes"""
-                logger.info("Envoi de la question à Ollama avec l'historique")
-                
+
                 messages = [
                     {"role": "system", "content": system_prompt},
                     *self.conversation_history
@@ -202,59 +210,44 @@ Instructions:
                         model=self.model_name,
                         messages=messages
                     )
-                    logger.info(f"Structure de la réponse Ollama: {response}")
                     full_response = response.message.content
-                    # Ajouter la réponse à l'historique
                     self.conversation_history.append({"role": "assistant", "content": full_response})
                     
-                    logger.info(f"Réponse complète d'Ollama: {full_response}")
-                    return web.Response(text=full_response)
+                    return web.Response(
+                        text=json.dumps({"victory": False, "response": full_response}),
+                        content_type=JSON_CONTENT_TYPE
+                    )
                 
                 except ollama.ResponseError as e:
                     logger.error(f"Erreur Ollama: {e}")
                     return web.Response(
-                        text="Désolé, je n'ai pas pu générer une réponse. Veuillez réessayer.",
-                        status=500
+                        text=json.dumps({"error": "Erreur de génération de réponse"}),
+                        status=500,
+                        content_type=JSON_CONTENT_TYPE
                     )
                 except Exception as e:
                     logger.error(f"Erreur inattendue avec Ollama: {e}")
                     return web.Response(
-                        text="Une erreur s'est produite lors de la génération de la réponse.",
-                        status=500
+                        text=json.dumps({"error": "Erreur interne"}),
+                        status=500,
+                        content_type=JSON_CONTENT_TYPE
                     )
 
             except json.JSONDecodeError:
                 logger.error("Erreur de décodage JSON")
                 return web.Response(
-                    text="Format de question invalide.",
-                    status=400
+                    text=json.dumps({"error": "Format JSON invalide"}),
+                    status=400,
+                    content_type=JSON_CONTENT_TYPE
                 )
             except Exception as e:
                 logger.error(f"Erreur lors du streaming: {e}")
                 return web.Response(
-                    text="Désolé, une erreur inattendue s'est produite. Veuillez réessayer.",
-                    status=500
+                    text=json.dumps({"error": "Erreur interne"}),
+                    status=500,
+                    content_type=JSON_CONTENT_TYPE
                 )
 
-    async def handle_verify(self, request):
-        try:
-            data = await request.json()
-            guess = data.get('guess', '').lower()
-            
-            if guess == self.hidden_word:
-                # Mettre à jour le CSV avec la victoire
-                await self._update_game_result(self.current_pseudo, 'victoire')
-                return web.Response(text=json.dumps({'correct': True}),
-                                 content_type=JSON_CONTENT_TYPE)
-            else:
-                return web.Response(text=json.dumps({'correct': False}),
-                                 content_type=JSON_CONTENT_TYPE)
-
-        except json.JSONDecodeError:
-            raise web.HTTPBadRequest(text='Format JSON invalide')
-        except Exception as e:
-            logger.error(f"Erreur lors de la vérification: {e}")
-            raise web.HTTPInternalServerError(text=str(e))
 
     async def handle_end(self, request):
         """Gère l'abandon d'une partie."""

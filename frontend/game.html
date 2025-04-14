@@ -25,7 +25,6 @@
                     <input type="text" id="sharedInput" placeholder="Tapez votre message..." />
                     <div class="buttons-container">
                         <button id="btnEnvoyer" class="btn-send">Envoyer</button>
-                        <button id="btnDeviner" class="btn-guess">Deviner</button>
                     </div>
                 </div>
             </div>
@@ -58,11 +57,11 @@
         }
 
         document.getElementById('btnEnvoyer').addEventListener('click', async () => {
-            const question = document.getElementById('sharedInput').value.trim();
+            const message = document.getElementById('sharedInput').value.trim();
             
-            if (!question) return;
+            if (!message) return;
             
-            appendMessage(question, true);
+            appendMessage(message, true);
             document.getElementById('sharedInput').value = '';
 
             // Fermer l'ancien eventSource s'il existe
@@ -71,13 +70,12 @@
             }
 
             try {
-                // Envoyer la question au serveur
                 const response = await fetch('/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ question })
+                    body: JSON.stringify({ question: message })
                 });
 
                 if (!response.ok) {
@@ -85,8 +83,13 @@
                     throw new Error(errorText || 'Erreur serveur');
                 }
 
-                const aiResponse = await response.text();
-                appendMessage(aiResponse);
+                const result = await response.json();
+                
+                if (result.victory) {
+                    showVictoryModal();
+                } else {
+                    appendMessage(result.response);
+                }
 
             } catch (error) {
                 console.error('Erreur:', error);
@@ -94,40 +97,9 @@
             }
         });
 
-        document.getElementById('btnDeviner').addEventListener('click', async () => {
-            const guess = document.getElementById('sharedInput').value.trim();
-            
-            if (!guess) return;
-
-            try {
-                const response = await fetch('/verify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ guess })
-                });
-
-                const result = await response.json();
-                
-                if (result.correct) {
-                    showVictoryModal();
-                } else {
-                    appendMessage("Ce n'est pas le bon mot, continuez à chercher !");
-                }
-                
-                document.getElementById('sharedInput').value = '';
-
-            } catch (error) {
-                console.error('Erreur:', error);
-                appendMessage('Désolé, une erreur est survenue.');
-            }
-        });
-
         document.getElementById('sharedInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                const activeButton = e.shiftKey ? 'btnDeviner' : 'btnEnvoyer';
-                document.getElementById(activeButton).click();
+                document.getElementById('btnEnvoyer').click();
             }
         });
 
