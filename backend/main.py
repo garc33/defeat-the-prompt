@@ -66,6 +66,7 @@ Instructions:
         self.app.router.add_get('/distribution/last', self.handle_last_distribution)
         self.app.router.add_get('/distribution/winners', self.handle_distribution_winners)
         self.app.router.add_post('/distribution/start', self.handle_distribution_start)
+        self.app.router.add_get('/distribution/history', self.handle_distribution_history)
         self.app.router.add_static('/static', Path('frontend'))
 
     async def _update_game_result(self, pseudo: str, resultat: str) -> None:
@@ -452,6 +453,72 @@ Instructions:
             logger.error(f"Erreur lors du démarrage de la distribution: {e}")
             raise web.HTTPInternalServerError(text=str(e))
 
+    async def handle_distribution_history(self, request):
+        """Retourne l'historique des distributions avec pagination."""
+        try:
+            # Récupérer les paramètres de pagination
+            page = int(request.query.get('page', '1'))
+            per_page = int(request.query.get('per_page', '10'))
+            
+            # Vérifier la validité des paramètres
+            if page < 1 or per_page < 1:
+                raise web.HTTPBadRequest(text="Les paramètres de pagination doivent être positifs")
+            
+            distributions_file = Path('data/distributions.csv')
+            if not distributions_file.exists():
+                return web.Response(
+                    text=json.dumps({'distributions': [], 'total': 0, 'page': page, 'per_page': per_page}),
+                    content_type='application/json'
+                )
+            
+            # Lire toutes les distributions
+            rows = []
+            with open(distributions_file, 'r', newline='') as f:
+                reader = csv.reader(f)
+                next(reader)  # Skip header
+                rows = list(reader)
+            
+            # Trier par date décroissante
+            rows.sort(reverse=True)  # Supposant que la date est en première colonne
+            
+            # Calculer la pagination
+            total = len(rows)
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            page_rows = rows[start_idx:end_idx]
+            
+            # Formater les résultats
+            distributions = []
+            for row in page_rows:
+                dist = {
+                    'date_distribution': row[0],
+                    'gagnants': []
+                }
+                # Chaque gagnant a deux colonnes (pseudo et téléphone)
+                for i in range(3):
+                    idx = 1 + i * 2
+                    if idx + 1 < len(row) and row[idx]:  # Vérifier qu'on a le pseudo et le téléphone
+                        dist['gagnants'].append({
+                            'pseudo': row[idx],
+                            'telephone': row[idx + 1]
+                        })
+                distributions.append(dist)
+            
+            return web.Response(
+                text=json.dumps({
+                    'distributions': distributions,
+                    'total': total,
+                    'page': page,
+                    'per_page': per_page
+                }),
+                content_type='application/json'
+            )
+            
+        except ValueError as e:
+            raise web.HTTPBadRequest(text="Paramètres de pagination invalides")
+        except Exception as e:
+            logger.error(f"Erreur lors de la récupération de l'historique: {e}")
+            raise web.HTTPInternalServerError(text=str(e))
 
 def main():
     parser = argparse.ArgumentParser(description='Serveur de jeu de devinette')

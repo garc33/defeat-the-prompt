@@ -24,9 +24,109 @@
             <button id="startDistribution" class="primary-button">Lancer la Distribution</button>
             <p id="distributionStatus" class="status-message"></p>
         </section>
+
+        <section id="distributionHistory" class="section">
+            <h2>Historique des Distributions</h2>
+            <div class="history-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Gagnants</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <button id="prevPage" class="pagination-button">&lt; Précédent</button>
+                <span id="pageInfo">Page 1</span>
+                <button id="nextPage" class="pagination-button">Suivant &gt;</button>
+            </div>
+        </section>
     </div>
 
+    <style>
+        .history-table {
+            width: 100%;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        .history-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .history-table th,
+        .history-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        .winners-mini-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .winner-entry {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .winner-entry:last-child {
+            border-bottom: none;
+        }
+
+        .winner-pseudo {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .winner-phone {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .winners-list {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .pagination-button {
+            padding: 8px 15px;
+            border: none;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .pagination-button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+
     <script>
+        // Variables globales pour la pagination
+        let currentPage = 1;
+        let totalPages = 1;
+
         // Formater la date en français
         function formatDate(isoDate) {
             return new Date(isoDate).toLocaleString('fr-FR', {
@@ -118,11 +218,65 @@
             }
         }
 
+        // Charger l'historique des distributions
+        async function loadDistributionHistory(page = 1) {
+            try {
+                const response = await fetch(`/distribution/history?page=${page}&per_page=10`);
+                const data = await response.json();
+                
+                const tableBody = document.getElementById('historyTableBody');
+                tableBody.innerHTML = data.distributions
+                    .map(dist => `
+                        <tr>
+                            <td>${formatDate(dist.date_distribution)}</td>
+                            <td>
+                                <div class="winners-list">
+                                    ${dist.gagnants.map(winner => `
+                                        <div class="winner-entry">
+                                            <div class="winner-pseudo">${winner.pseudo}</div>
+                                            <div class="winner-phone">📱 ${winner.telephone}</div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </td>
+                        </tr>
+                    `)
+                    .join('');
+                    
+                // Mise à jour pagination
+                currentPage = data.page;
+                totalPages = Math.ceil(data.total / data.per_page);
+                updatePagination();
+            } catch (error) {
+                console.error('Erreur lors du chargement de l\'historique:', error);
+            }
+        }
+
+        // Mise à jour des contrôles de pagination
+        function updatePagination() {
+            document.getElementById('prevPage').disabled = currentPage <= 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} sur ${totalPages}`;
+        }
+
         // Configuration des événements
         document.getElementById('startDistribution').addEventListener('click', startDistribution);
+        document.getElementById('prevPage').addEventListener('click', () => {
+            if (currentPage > 1) {
+                loadDistributionHistory(currentPage - 1);
+            }
+        });
+        document.getElementById('nextPage').addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                loadDistributionHistory(currentPage + 1);
+            }
+        });
 
-        // Charger la dernière distribution au chargement de la page
-        document.addEventListener('DOMContentLoaded', loadLastDistribution);
+        // Initialisation de la page
+        document.addEventListener('DOMContentLoaded', () => {
+            loadLastDistribution();
+            loadDistributionHistory();
+        });
     </script>
 </body>
 </html>
