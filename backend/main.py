@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import aiohttp
 from aiohttp import web
 import aiohttp_sse
 import json
@@ -9,6 +8,11 @@ import csv
 from datetime import datetime
 from pathlib import Path
 import logging
+
+# Constants
+JSON_CONTENT_TYPE = 'application/json'
+DISTRIBUTIONS_FILE = Path('data/distributions.csv')
+CADEAUX_FILE = Path('data/cadeaux_recus.csv')
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -138,7 +142,7 @@ Instructions:
                               self.hidden_word, 'en_cours', '0'])
 
             return web.Response(text=json.dumps({'status': 'success'}),
-                              content_type='application/json')
+                              content_type=JSON_CONTENT_TYPE)
 
         except json.JSONDecodeError:
             raise web.HTTPBadRequest(text='Format JSON invalide')
@@ -162,7 +166,7 @@ Instructions:
                 # Ajouter la question à l'historique
                 self.conversation_history.append({"role": "user", "content": question})
 
-                logger.info(f"Envoi de la question à Ollama avec l'historique")
+                logger.info("Envoi de la question à Ollama avec l'historique")
                 
                 messages = [
                     {"role": "system", "content": self.system_prompt},
@@ -217,10 +221,10 @@ Instructions:
                 # Mettre à jour le CSV avec la victoire
                 await self._update_game_result(self.current_pseudo, 'victoire')
                 return web.Response(text=json.dumps({'correct': True}),
-                                 content_type='application/json')
+                                 content_type=JSON_CONTENT_TYPE)
             else:
                 return web.Response(text=json.dumps({'correct': False}),
-                                 content_type='application/json')
+                                 content_type=JSON_CONTENT_TYPE)
 
         except json.JSONDecodeError:
             raise web.HTTPBadRequest(text='Format JSON invalide')
@@ -236,7 +240,7 @@ Instructions:
                 
             await self._update_game_result(self.current_pseudo, 'abandon')
             return web.Response(text=json.dumps({'status': 'success'}),
-                             content_type='application/json')
+                              content_type=JSON_CONTENT_TYPE)
                              
         except Exception as e:
             logger.error(f"Erreur lors de l'abandon: {e}")
@@ -267,7 +271,7 @@ Instructions:
             
             return web.Response(
                 text=json.dumps({'leaderboard': top_scores}),
-                content_type='application/json'
+                content_type=JSON_CONTENT_TYPE
             )
             
         except Exception as e:
@@ -291,13 +295,12 @@ Instructions:
     async def get_last_distribution(self):
         """Récupère la dernière distribution de cadeaux."""
         try:
-            distributions_file = Path('data/distributions.csv')
-            if not distributions_file.exists():
+            if not DISTRIBUTIONS_FILE.exists():
                 return None
                 
-            with open(distributions_file, 'r', newline='') as f:
+            with open(DISTRIBUTIONS_FILE, 'r', newline='') as f:
                 reader = csv.reader(f)
-                header = next(reader)  # Skip header
+                next(reader)  # Skip header
                 rows = list(reader)
                 if not rows:
                     return None
@@ -320,20 +323,18 @@ Instructions:
     async def save_distribution(self, winners):
         """Enregistre une nouvelle distribution."""
         try:
-            distributions_file = Path('data/distributions.csv')
             now = datetime.now().isoformat()
             
             row = [now]  # Date de distribution
             for winner in winners:
                 row.extend([winner['pseudo'], winner['telephone']])  # Ajouter pseudo et téléphone
             
-            with open(distributions_file, 'a', newline='') as f:
+            with open(DISTRIBUTIONS_FILE, 'a', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(row)
 
             # Enregistrer les cadeaux reçus
-            cadeaux_file = Path('data/cadeaux_recus.csv')
-            with open(cadeaux_file, 'a', newline='') as f:
+            with open(CADEAUX_FILE, 'a', newline='') as f:
                 writer = csv.writer(f)
                 for winner in winners:
                     writer.writerow([winner['pseudo'], now])
@@ -404,7 +405,7 @@ Instructions:
             last_dist = await self.get_last_distribution()
             return web.Response(
                 text=json.dumps(last_dist if last_dist else {}),
-                content_type='application/json'
+                content_type=JSON_CONTENT_TYPE
             )
         except Exception as e:
             logger.error(f"Erreur lors de la récupération de la dernière distribution: {e}")
@@ -417,18 +418,17 @@ Instructions:
             if not last_dist:
                 return web.Response(
                     text=json.dumps({'winners': []}),
-                    content_type='application/json'
+                    content_type=JSON_CONTENT_TYPE
                 )
             
             winners = []
-            if last_dist:
-                for i in range(1, 4):
-                    if last_dist[f'gagnant{i}']:
-                        winners.append(last_dist[f'gagnant{i}'])
+            for i in range(1, 4):
+                if f'gagnant{i}' in last_dist and last_dist[f'gagnant{i}']:
+                    winners.append(last_dist[f'gagnant{i}'])
             
             return web.Response(
                 text=json.dumps({'winners': winners}),
-                content_type='application/json'
+                content_type=JSON_CONTENT_TYPE
             )
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des gagnants: {e}")
@@ -445,7 +445,7 @@ Instructions:
             
             return web.Response(
                 text=json.dumps({'winners': winners}),
-                content_type='application/json'
+                content_type=JSON_CONTENT_TYPE
             )
         except web.HTTPBadRequest as e:
             raise
@@ -464,16 +464,15 @@ Instructions:
             if page < 1 or per_page < 1:
                 raise web.HTTPBadRequest(text="Les paramètres de pagination doivent être positifs")
             
-            distributions_file = Path('data/distributions.csv')
-            if not distributions_file.exists():
+            if not DISTRIBUTIONS_FILE.exists():
                 return web.Response(
                     text=json.dumps({'distributions': [], 'total': 0, 'page': page, 'per_page': per_page}),
-                    content_type='application/json'
+                    content_type=JSON_CONTENT_TYPE
                 )
             
             # Lire toutes les distributions
             rows = []
-            with open(distributions_file, 'r', newline='') as f:
+            with open(DISTRIBUTIONS_FILE, 'r', newline='') as f:
                 reader = csv.reader(f)
                 next(reader)  # Skip header
                 rows = list(reader)
@@ -511,7 +510,7 @@ Instructions:
                     'page': page,
                     'per_page': per_page
                 }),
-                content_type='application/json'
+                content_type=JSON_CONTENT_TYPE
             )
             
         except ValueError as e:

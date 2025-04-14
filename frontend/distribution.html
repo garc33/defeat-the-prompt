@@ -165,7 +165,7 @@
                     throw new Error(error);
                 }
                 
-                const data = await response.json();
+                await response.json(); // Vérifier que la réponse est du JSON valide
                 
                 status.textContent = 'Distribution effectuée avec succès !';
                 status.className = 'status-message success';
