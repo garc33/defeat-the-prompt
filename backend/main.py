@@ -5,6 +5,7 @@ import aiohttp_sse
 import json
 import ollama
 import csv
+import random
 from datetime import datetime
 from pathlib import Path
 import logging
@@ -18,22 +19,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GameServer:
-    def __init__(self, hidden_word: str, output_file: str, model_name: str, admin_password: str):
+    def __init__(self, words_file: str, output_file: str, model_name: str, admin_password: str):
         self.model_name = model_name
         self.admin_password = admin_password
         self.conversation_history = []
         self.start_time = None
         self.current_pseudo = None
-        self.system_prompt = f"""Tu es une IA qui joue à un jeu de devinette.
-Le joueur doit deviner un mot en posant des questions.
-Le mot à deviner est '{hidden_word.lower()}'.
-
-Instructions:
-- Si c'est une question fermée, réponds par oui ou non
-- Si c'est une question ouverte, réponds par une phrase
-- Ne donne JAMAIS une description complète du mot
-- NE DONNE JAMAIS LE MOT EN ENTIER
-- Base ta réponse en tenant compte de l'historique des questions précédentes"""
+        self.hidden_word = None
         logger.info(f"Initialisation du modèle {self.model_name}...")
         try:
             ollama.pull(self.model_name)
@@ -42,7 +34,6 @@ Instructions:
             logger.error(f"Erreur lors du téléchargement du modèle: {e}")
             raise
             
-        self.hidden_word = hidden_word.lower()
         self.output_file = Path(output_file)
         self.app = web.Application()
         self.setup_routes()
@@ -56,6 +47,25 @@ Instructions:
             with open(self.output_file, 'w', newline='') as f:
                 writer = csv.writer(f)
                 writer.writerow(['date', 'pseudo', 'telephone', 'mot_cache', 'resultat', 'temps_partie'])
+
+    def _select_random_word(self, words_file: str) -> str:
+        """Sélectionne un mot aléatoire du fichier."""
+        try:
+            words_path = Path(words_file)
+            if not words_path.exists():
+                raise FileNotFoundError(f"Le fichier {words_file} n'existe pas")
+                
+            with open(words_path, 'r', encoding='utf-8') as f:
+                words = [word.strip().lower() for word in f if word.strip()]
+                
+            if not words:
+                raise ValueError("Le fichier de mots est vide")
+                
+            return random.choice(words)
+            
+        except Exception as e:
+            logger.error(f"Erreur lors du chargement du fichier de mots: {e}")
+            raise
 
     def setup_routes(self):
         self.app.router.add_get('/', self.handle_index)
@@ -136,6 +146,9 @@ Instructions:
             self.start_time = datetime.now()
             self.current_pseudo = data['pseudo']
 
+            # Sélectionner un mot aléatoire
+            self.hidden_word = self._select_random_word('data/mots.txt')
+
             # Sauvegarder les informations du joueur
             now = datetime.now().isoformat()
             with open(self.output_file, 'a', newline='') as f:
@@ -167,11 +180,20 @@ Instructions:
 
                 # Ajouter la question à l'historique
                 self.conversation_history.append({"role": "user", "content": question})
+                system_prompt = f"""Tu es une IA qui joue à un jeu de devinette.
+Le joueur doit deviner un mot en posant des questions.
+Le mot à deviner est '{self.hidden_word.lower()}'.
 
+Instructions:
+- Si c'est une question fermée, réponds par oui ou non
+- Si c'est une question ouverte, réponds par une phrase
+- Ne donne JAMAIS une description complète du mot
+- NE DONNE JAMAIS LE MOT EN ENTIER
+- Base ta réponse en tenant compte de l'historique des questions précédentes"""
                 logger.info("Envoi de la question à Ollama avec l'historique")
                 
                 messages = [
-                    {"role": "system", "content": self.system_prompt},
+                    {"role": "system", "content": system_prompt},
                     *self.conversation_history
                 ]
                 
@@ -546,18 +568,14 @@ Instructions:
 
 def main():
     parser = argparse.ArgumentParser(description='Serveur de jeu de devinette')
-    parser.add_argument('--word', required=True, help='Le mot à deviner')
+    parser.add_argument('--words-file', required=True, help='Fichier contenant la liste des mots à deviner')
     parser.add_argument('--output', required=True, help='Fichier CSV pour les résultats')
-    parser.add_argument('--model', default='llama2:3b', help='Nom du modèle à utiliser')
     parser.add_argument('--password', required=True, help='Mot de passe admin pour la page de distribution')
-    args = parser.parse_args()
-    
-    app = GameServer(args.word, args.output, args.model, args.password)
-    web.run_app(app.app, port=8080)
     parser.add_argument('--model', default='llama3.2:3b', help='Nom du modèle LLM à utiliser (par défaut: llama3.2:3b)')
     args = parser.parse_args()
 
-    game_server = GameServer(args.word, args.output, args.model)
+    game_server = GameServer(args.words_file, args.output, args.model, args.password)
+    logger.info("Démarrage du serveur...")
     web.run_app(game_server.app, host='localhost', port=8080)
 
 if __name__ == '__main__':
