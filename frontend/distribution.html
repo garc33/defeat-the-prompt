@@ -12,21 +12,32 @@
             <h1>Distribution des Cadeaux</h1>
             <a href="/" class="btn-back">Retour à l'accueil</a>
         </header>
-        
-        <section id="lastDistribution" class="section">
-            <h2>Dernière Distribution</h2>
-            <p id="lastDistributionTime">Aucune distribution effectuée</p>
+        <section id="loginForm" class="section">
+            <h2>Accès à la Distribution</h2>
+            <div class="form-group">
+                <input type="password" id="adminPassword" placeholder="Mot de passe admin" class="password-input">
+                <button id="submitPassword" class="btn-back">Connexion</button>
+            </div>
+            <p id="loginError" class="error-message" style="display: none;"></p>
         </section>
 
-        <section id="newDistribution" class="section">
-            <h2>Nouvelle Distribution</h2>
-            <button id="startDistribution" class="btn-back">Lancer la Distribution</button>
-            <p id="distributionStatus" class="status-message"></p>
-        </section>
+        <section id="distributionContent" class="section" style="display: none;">
+            <h2>Distribution des Cadeaux</h2>
 
-        <section id="distributionHistory" class="section">
-            <h2>Historique des Distributions</h2>
-            <div class="history-table">
+            <div id="lastDistribution">
+                <h3>Dernière Distribution</h3>
+                <p id="lastDistributionTime">Aucune distribution effectuée</p>
+            </div>
+
+            <div id="newDistribution">
+                <h3>Nouvelle Distribution</h3>
+                <button id="startDistribution" class="btn-back">Lancer la Distribution</button>
+                <p id="distributionStatus" class="status-message"></p>
+            </div>
+
+            <div id="distributionHistory">
+                <h3>Historique des Distributions</h3>
+                <div class="history-table">
                 <table>
                     <thead>
                         <tr>
@@ -44,6 +55,28 @@
             </div>
         </section>
     </div>
+    
+    <style>
+        .form-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+    
+        .password-input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+    
+        .error-message {
+            color: #dc3545;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+    </style>
 
     <style>
         .history-table {
@@ -114,8 +147,38 @@
             cursor: not-allowed;
         }
     </style>
+<script>
+    // Gestion de l'authentification
+    async function handleLogin(event) {
+        event.preventDefault();
+        const password = document.getElementById('adminPassword').value;
+        const errorElem = document.getElementById('loginError');
+        
+        try {
+            const response = await fetch('/distribution/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            
+            if (response.ok) {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('distributionContent').style.display = 'block';
+                document.getElementById('adminPassword').value = '';
+                loadLastDistribution();
+                loadDistributionHistory();
+            } else {
+                const error = await response.text();
+                errorElem.textContent = error;
+                errorElem.style.display = 'block';
+            }
+        } catch (error) {
+            errorElem.textContent = "Erreur lors de la vérification du mot de passe";
+            errorElem.style.display = 'block';
+        }
+    }
 
-    <script>
+
         // Variables globales pour la pagination
         let currentPage = 1;
         let totalPages = 1;
@@ -240,8 +303,10 @@
 
         // Initialisation de la page
         document.addEventListener('DOMContentLoaded', () => {
-            loadLastDistribution();
-            loadDistributionHistory();
+            document.getElementById('submitPassword').addEventListener('click', handleLogin);
+            document.getElementById('adminPassword').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleLogin(e);
+            });
         });
     </script>
 </body>

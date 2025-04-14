@@ -18,8 +18,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class GameServer:
-    def __init__(self, hidden_word: str, output_file: str, model_name: str):
+    def __init__(self, hidden_word: str, output_file: str, model_name: str, admin_password: str):
         self.model_name = model_name
+        self.admin_password = admin_password
         self.conversation_history = []
         self.start_time = None
         self.current_pseudo = None
@@ -70,6 +71,7 @@ Instructions:
         self.app.router.add_get('/distribution/last', self.handle_last_distribution)
         self.app.router.add_get('/distribution/winners', self.handle_distribution_winners)
         self.app.router.add_post('/distribution/start', self.handle_distribution_start)
+        self.app.router.add_post('/distribution/verify', self.handle_distribution_verify)
         self.app.router.add_get('/distribution/history', self.handle_distribution_history)
         self.app.router.add_static('/static', Path('frontend'))
 
@@ -452,6 +454,29 @@ Instructions:
         except Exception as e:
             logger.error(f"Erreur lors du démarrage de la distribution: {e}")
             raise web.HTTPInternalServerError(text=str(e))
+            
+    async def handle_distribution_verify(self, request):
+        """Vérifie le mot de passe pour l'accès à la page de distribution."""
+        try:
+            data = await request.json()
+            password = data.get('password')
+            
+            if not password:
+                raise web.HTTPBadRequest(text="Mot de passe requis")
+                
+            if password == self.admin_password:
+                return web.Response(
+                    text=json.dumps({'success': True}),
+                    content_type=JSON_CONTENT_TYPE
+                )
+            else:
+                raise web.HTTPUnauthorized(text="Mot de passe incorrect")
+                
+        except json.JSONDecodeError:
+            raise web.HTTPBadRequest(text="Format JSON invalide")
+        except Exception as e:
+            logger.error(f"Erreur lors de la vérification du mot de passe: {e}")
+            raise web.HTTPInternalServerError(text=str(e))
 
     async def handle_distribution_history(self, request):
         """Retourne l'historique des distributions avec pagination."""
@@ -523,6 +548,12 @@ def main():
     parser = argparse.ArgumentParser(description='Serveur de jeu de devinette')
     parser.add_argument('--word', required=True, help='Le mot à deviner')
     parser.add_argument('--output', required=True, help='Fichier CSV pour les résultats')
+    parser.add_argument('--model', default='llama2:3b', help='Nom du modèle à utiliser')
+    parser.add_argument('--password', required=True, help='Mot de passe admin pour la page de distribution')
+    args = parser.parse_args()
+    
+    app = GameServer(args.word, args.output, args.model, args.password)
+    web.run_app(app.app, port=8080)
     parser.add_argument('--model', default='llama3.2:3b', help='Nom du modèle LLM à utiliser (par défaut: llama3.2:3b)')
     args = parser.parse_args()
 
