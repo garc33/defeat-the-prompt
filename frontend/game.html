@@ -56,6 +56,49 @@
             document.getElementById('victoryModal').style.display = 'flex';
         }
 
+        function appendProcessingIndicator() {
+            const messagesDiv = document.getElementById('chat-messages');
+            const processingDiv = document.createElement('div');
+            processingDiv.className = 'message processing';
+            processingDiv.setAttribute('role', 'status');
+            processingDiv.setAttribute('aria-label', 'Message en cours de traitement');
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'processing-indicator';
+            
+            const text = document.createElement('span');
+            text.textContent = 'En cours de traitement...';
+            
+            processingDiv.appendChild(indicator);
+            processingDiv.appendChild(text);
+            messagesDiv.appendChild(processingDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            
+            return processingDiv;
+        }
+
+        function removeProcessingIndicator(indicator) {
+            if (indicator && indicator.parentNode) {
+                indicator.parentNode.removeChild(indicator);
+            }
+        }
+
+        function setInputState(disabled) {
+            const input = document.getElementById('sharedInput');
+            const button = document.getElementById('btnEnvoyer');
+            
+            input.disabled = disabled;
+            button.disabled = disabled;
+            
+            if (disabled) {
+                input.classList.add('input-disabled');
+                button.classList.add('input-disabled');
+            } else {
+                input.classList.remove('input-disabled');
+                button.classList.remove('input-disabled');
+            }
+        }
+
         document.getElementById('btnEnvoyer').addEventListener('click', async () => {
             const message = document.getElementById('sharedInput').value.trim();
             
@@ -63,6 +106,10 @@
             
             appendMessage(message, true);
             document.getElementById('sharedInput').value = '';
+
+            // Disable input and show processing indicator
+            setInputState(true);
+            const processingIndicator = appendProcessingIndicator();
 
             // Fermer l'ancien eventSource s'il existe
             if (eventSource) {
@@ -85,6 +132,10 @@
 
                 const result = await response.json();
                 
+                // Remove processing indicator and re-enable input
+                removeProcessingIndicator(processingIndicator);
+                setInputState(false);
+                
                 if (result.victory) {
                     showVictoryModal();
                 } else {
@@ -93,6 +144,9 @@
 
             } catch (error) {
                 console.error('Erreur:', error);
+                // Remove processing indicator and re-enable input even on error
+                removeProcessingIndicator(processingIndicator);
+                setInputState(false);
                 appendMessage(error.message || 'Désolé, une erreur est survenue.');
             }
         });

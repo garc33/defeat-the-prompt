@@ -381,3 +381,35 @@ input[type="text"] {
     background-color: #ffebee;
     color: var(--error-color);
 }
+
+/* Processing indicator styles */
+.message.processing {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #f8f9fa;
+    margin-right: auto;
+    padding: 1rem;
+    max-width: 80%;
+    border-radius: var(--border-radius);
+}
+
+.processing-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Disable input during processing */
+.input-disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
